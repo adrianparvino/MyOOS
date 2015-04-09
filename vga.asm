@@ -9,6 +9,8 @@ size: dw 2
 dd print_char 
 dd move_cursor
 boot:
+	add esp, 4
+	pop ebp
 	ret
 print_char:
 	push ebx

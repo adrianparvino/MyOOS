@@ -57,35 +57,25 @@ _global:
 ;------------------------------------
 do_nothing:
 	iret
+;--------------------------------
+load_module:
+	push ebp
+	mov ebp, esp
+	sub esp, 4
+	mov eax, [edx]
+	push edx
+	mov edx, eax
+	mov word ax, [eax]
+	and eax, 0xffff
+	mov [module_list + eax*4], edx
+	xor eax, eax
+	mov word ax, [edx + 2]
+	lea eax, [eax*4 + 4]
+	add eax, edx
+	pop edx
+	jmp eax
+
 ;------------------------------------------
-echo:
-	pushad
-
-	inc dword [echo_count]
-
-	mov al, 0x20
-	out byte 0x20, al
-	in byte al, 0x60
-	popad
-	iret
-echo_string_0:
-	db "Key pressed yay! \o/ ", 0
-echo_count:
-	dd 0
-;---------------------------------------------
-load_keyboard:
-	lea eax, [IDT + 0x21*8]
-	mov word [eax], (BOS - $$ + echo) & 0xffff
-	mov word [eax + 2], 0x8
-	mov byte [eax + 4], 0
-	mov byte [eax + 5], 0x8e
-	mov word [eax + 6], (BOS - $$ + echo) >> 16
-	ret
-;---------------------------------------------
-halt:
-	cli
-	hlt
-;-------------------
 run_module:
 	push ebp
 	mov ebp, esp
@@ -159,10 +149,10 @@ allocate_module_table:
 		add eax, [edx + 8]
 		mov dword [module_list], edx
 minimum_GDT_IDT_setup:
-		lgdt [GDTR]
-		lidt [IDTR]
-		jmp 0x08:reload
-	reload:
+	lgdt [GDTR]
+	lidt [IDTR]
+	jmp 0x08:.reload
+	.reload:
 		mov ax, 0x10
 		mov ds, ax
 		mov es, ax
@@ -171,53 +161,42 @@ minimum_GDT_IDT_setup:
 		mov ss, ax
 
 PIC_remap:
-		mov al, 0x11
-		out byte 0x20, al ;start init sequence
-		out byte 0xa0, al
-		
-		mov al, 0x20
+	mov al, 0x11
+	out byte 0x20, al ;start init sequence
+	out byte 0xa0, al
+	
+	mov al, 0x20
 
-		out byte 0x21, al ;point to offset
-		mov al, 0x28
-		out byte 0xa1, al
+	out byte 0x21, al ;point to offset
+	mov al, 0x28
+	out byte 0xa1, al
 
-		mov al, 0x4
-		out byte 0x21, al ;tell cascade identity
-		mov al, 0x2
-		out byte 0xa1, al
-		
-		mov al, 0x01
-		out byte 0x21, al
-		out byte 0xa1, al
+	mov al, 0x4
+	out byte 0x21, al ;tell cascade identity
+	mov al, 0x2
+	out byte 0xa1, al
+	
+	mov al, 0x01
+	out byte 0x21, al
+	out byte 0xa1, al
 
 PIC_mask:
-		mov al, 0xfd
-		out 0x21, al
-		mov al, 0xff
-		out 0xa1, al
+	mov al, 0xfd
+	out 0x21, al
+	mov al, 0xff
+	out 0xa1, al
 
-int_setup:
-		call load_keyboard
-		;sti
 load_modules:
 	mov ecx, [ebx + 20]
 	mov edx, [ebx + 24]
-load_loop:
-	jecxz temp
-	mov eax, [edx]
-	push edx
-	mov edx, eax
-	mov word ax, [eax]
-	and eax, 0xffff
-	mov [module_list + eax*4], edx
-	xor eax, eax
-	mov word ax, [edx + 2]
-	lea eax, [eax*4 + 4]
-	add eax, edx
-	call eax
-	pop edx
-	dec ecx
-	jmp load_loop
+	.loop:
+		jecxz temp
+		call load_module
+		add edx, 16
+		dec ecx
+		jmp .loop
+finish:
+	sti
 temp_0:
 	mov ecx, 0
 temp:
