@@ -4,4 +4,4 @@ As pretty as a muse
 
 To build
 -
-run `build install` with a bootvfd directory on the directory.
+Run `build install` with a bootvfd directory on the directory.
