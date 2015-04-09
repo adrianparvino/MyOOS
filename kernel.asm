@@ -105,51 +105,59 @@ run_module:
 	jmp eax
 ;--------------------------------------------
 _start:
-allocate_stack:
-		mov ecx, [ebx + 44]
-		add ecx, [ebx + 48]
-		mov edx, [ebx + 48]
-		jmp above_1_MB_0
-	read_next_0:
+above_MB:
+	mov ecx, [ebx + 44]
+	add ecx, [ebx + 48]
+	mov edx, [ebx + 48]
+	jmp .above_1_MB
+	.read_next:
 		add edx, [edx - 4]
 		add edx, 4
-	above_1_MB_0:
+	.above_1_MB:
 		cmp dword [edx], 0x10000
-		jb read_next_0
-	read_next_1:
+		jb .read_next
 		mov eax, edx
+allocate_stack:
+	jmp .check_memory_table
+	.read_next:
 		add edx, [edx - 4]
 		add edx, 4
-	check_memory_table_0:
+	.check_memory_table:
 		test dword [edx + 16], 0x1
-		jz read_next_0
+		jz .read_next
+		cmp dword [edx + 12], 1
+		jae .found
 		cmp dword [edx + 8], 65536
-		jne read_next_0
-		cmp dword [edx + 12], 0
-		jne read_next_0
-	found_0:
-		mov byte [edx + 16], 0
-		mov esp, dword [edx]
+		jna .read_next
+	.found:
+		sub dword [edx + 8], 65536
+		jnc .else
+		sub dword [edx + 12], 1
+	.else:
+		mov esp, [edx]
+		add esp, [edx + 8]
 		add esp, 65536
 allocate_module_table:
-	read_next_3:
-		add eax, [eax - 4]
-		add eax, 4
-	check_memory_table_1:
-		test dword [eax + 16], 0x1
-		jz read_next_3
-		cmp dword [eax + 12], 1
-		jae found_1
-		cmp dword [eax + 8], 65536*4
-		jna read_next_3
-	found_1:
-		sub dword [eax + 8], 65536*4
-		jnc else
-		sub dword [eax + 12], 1
-	else:
-		mov eax, [eax]
-		add eax, [eax + 8]
-		mov dword [module_list], eax
+	mov edx, eax
+	jmp .check_memory_table
+	.read_next:
+		add edx, [edx - 4]
+		add edx, 4
+	.check_memory_table:
+		test dword [edx + 16], 0x1
+		jz .read_next
+		cmp dword [edx + 12], 1
+		jae .found
+		cmp dword [edx + 8], 65536*4
+		jna .read_next
+	.found:
+		sub dword [edx + 8], 65536*4
+		jnc .else
+		sub dword [edx + 12], 1
+	.else:
+		mov eax, [edx]
+		add eax, [edx + 8]
+		mov dword [module_list], edx
 minimum_GDT_IDT_setup:
 		lgdt [GDTR]
 		lidt [IDTR]
@@ -210,13 +218,17 @@ load_loop:
 	pop edx
 	dec ecx
 	jmp load_loop
+temp_0:
+	mov ecx, 0
 temp:
-	mov al, [hi]
+	mov al, [hi + ecx]
 	and al, 0xff
 	jz _stop
 	push dword eax
 	mov eax, 0xb8000000
 	call run_module
+	pop dword eax
+	inc ecx
 	jmp temp
 _stop:
 	hlt
