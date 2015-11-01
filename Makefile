@@ -7,3 +7,5 @@ install: kernel vga
 	cp kernel bootvfd/boot/kernel.bin
 	cp vga bootvfd/boot/vga.bin
 	umount bootvfd
+
+.PHONY: install
