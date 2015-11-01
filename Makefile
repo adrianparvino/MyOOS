@@ -1,7 +1,7 @@
-kernel: kernel.asm
-	nasm -f bin kernel.asm
-vga:	vga.asm
-	nasm -f bin vga.asm
+ASM = nasm
+
+%: %.asm
+	${ASM} -f bin $<
 install: kernel vga
 	mount -o loop boot.vfd bootvfd
 	cp kernel bootvfd/boot/kernel.bin
